@@ -2,134 +2,263 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Laporan Data Kelas</title>
+<title>Dashboard Monitoring Kelas</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-    body {
-        font-family: Arial, sans-serif;
-        background: #f4f6f8;
-        padding: 20px;
-    }
-    h2 {
-        text-align: center;
-    }
-    .sumber {
-        text-align: center;
-        font-size: 13px;
-        margin-bottom: 10px;
-    }
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        background: white;
-    }
-    th, td {
-        border: 1px solid #ccc;
-        padding: 8px;
-        text-align: center;
-        font-size: 14px;
-    }
-    th {
-        background: #1976d2;
-        color: white;
-    }
-    tr:nth-child(even) {
-        background: #f2f2f2;
-    }
-    .filter {
-        text-align: center;
-        margin-bottom: 10px;
-    }
-    select {
-        padding: 6px;
-    }
+:root{
+    --primary:#1e88e5;
+    --secondary:#0d47a1;
+    --success:#2e7d32;
+    --danger:#c62828;
+    --bg:#f1f5f9;
+    --card:#ffffff;
+    --text:#263238;
+}
+*{box-sizing:border-box}
+body{
+    margin:0;
+    font-family:'Segoe UI',sans-serif;
+    background:linear-gradient(120deg,#e3f2fd,#f8fafc);
+    color:var(--text);
+}
+
+/* LOGIN */
+.login-wrapper{
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+.login-card{
+    background:var(--card);
+    padding:30px;
+    width:360px;
+    border-radius:16px;
+    box-shadow:0 20px 40px rgba(0,0,0,.15);
+    text-align:center;
+}
+.login-card h2{color:var(--secondary);margin-bottom:5px}
+.login-card p{font-size:13px;color:#555}
+.login-card input{
+    width:100%;
+    padding:12px;
+    margin:10px 0;
+    border-radius:10px;
+    border:1px solid #ccc;
+}
+.login-card button{
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+    background:linear-gradient(135deg,var(--primary),var(--secondary));
+    color:white;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+/* DASHBOARD */
+.hidden{display:none}
+.dashboard{padding:20px}
+
+/* HEADER */
+.header{
+    background:linear-gradient(135deg,var(--primary),var(--secondary));
+    color:white;
+    padding:28px 20px 40px;
+    border-radius:0 0 20px 20px;
+}
+.header-content{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+}
+.header h2{margin:0}
+.header small{
+    display:block;
+    margin-top:6px;
+    font-size:14px;
+    opacity:.9;
+}
+
+/* BUTTON */
+.btn{
+    border:none;
+    padding:10px 14px;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:600;
+}
+.btn-refresh{background:var(--success);color:white}
+.btn-logout{background:var(--danger);color:white}
+
+/* CARD */
+.card{
+    background:var(--card);
+    border-radius:16px;
+    padding:20px;
+    margin-top:20px;
+    box-shadow:0 10px 30px rgba(0,0,0,.1);
+}
+
+/* CONTROLS */
+.controls{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:10px;
+}
+select{
+    padding:10px;
+    border-radius:10px;
+    border:1px solid #ccc;
+}
+
+/* TABLE */
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+th{
+    background:#e3f2fd;
+    color:#0d47a1;
+    padding:12px;
+}
+td{
+    padding:10px;
+    text-align:center;
+    border-bottom:1px solid #eee;
+}
+tr:hover{background:#f1f8ff}
+
+/* FOOTER */
+.footer{
+    text-align:center;
+    font-size:12px;
+    color:#777;
+    margin-top:15px;
+}
 </style>
 </head>
 <body>
 
-<h2>LAPORAN DATA KELAS</h2>
-
-<div class="sumber">
-    Sumber Data:
-    <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vR8ZXd-OkTl0X6MvGcTrr7yxbYOA6F8nCYq7B5cX3eCilGRoqKzSNJp5ifEcIt7u2veOYp1IUPEdR3h/pub?gid=78947370&single=true&output=csv" target="_blank">
-        Google Spreadsheet
-    </a>
+<!-- LOGIN -->
+<div id="loginPage" class="login-wrapper">
+    <div class="login-card">
+        <h2>Dashboard</h2>
+        <p>Monitoring Keadaan Kelas</p>
+        <input id="username" placeholder="Username">
+        <input id="password" type="password" placeholder="Password">
+        <button onclick="login()">Masuk</button>
+        <p id="loginError" style="color:red;font-size:13px"></p>
+    </div>
 </div>
 
-<div class="filter">
-    Filter Kelas :
-    <select id="filterKelas" onchange="filterData()">
-        <option value="">Semua Kelas</option>
-    </select>
-</div>
+<!-- DASHBOARD -->
+<div id="dashboard" class="dashboard hidden">
+    <div class="header">
+        <div class="header-content">
+            <div>
+                <h2>Laporan Kelas</h2>
+                <small>Monitoring kegiatan pembelajaran</small>
+            </div>
+            <button class="btn btn-logout" onclick="logout()">Logout</button>
+        </div>
+    </div>
 
-<table>
-    <thead>
-        <tr>
-            <th>KELAS</th>
-            <th>JAM KE</th>
-            <th>HARI</th>
-            <th>MATA PELAJARAN</th>
-            <th>KEADAAN KELAS</th>
-        </tr>
-    </thead>
-    <tbody id="dataTable"></tbody>
-</table>
+    <div class="card">
+        <div class="controls">
+            <select id="filterKelas" onchange="filterData()">
+                <option value="">Semua Kelas</option>
+            </select>
+            <button class="btn btn-refresh" onclick="ambilData()">🔄 Refresh Data</button>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>KELAS</th>
+                    <th>JAM KE</th>
+                    <th>HARI</th>
+                    <th>MATA PELAJARAN</th>
+                    <th>KEADAAN KELAS</th>
+                </tr>
+            </thead>
+            <tbody id="dataTable"></tbody>
+        </table>
+
+        <div class="footer">
+            Sumber Data:
+            <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vR8ZXd-OkTl0X6MvGcTrr7yxbYOA6F8nCYq7B5cX3eCilGRoqKzSNJp5ifEcIt7u2veOYp1IUPEdR3h/pub?gid=78947370&single=true&output=csv" target="_blank">
+                Google Spreadsheet
+            </a>
+        </div>
+    </div>
+</div>
 
 <script>
-// GOOGLE APPS SCRIPT (DEPLOYMENT)
 const apiURL = "https://script.google.com/macros/s/AKfycbyGjzsGwNyoDeFFfYMlXHpULwGYj5qCiixyw9W9GLA3EYeH4Qmeiq3IsxA_QUGW_DK3vw/exec";
+const akun = { username:"admin", password:"12345" };
+let allData=[];
 
-// LINK CSV (REFERENSI DATA)
-const sheetCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR8ZXd-OkTl0X6MvGcTrr7yxbYOA6F8nCYq7B5cX3eCilGRoqKzSNJp5ifEcIt7u2veOYp1IUPEdR3h/pub?gid=78947370&single=true&output=csv";
+/* LOGIN */
+function login(){
+    if(username.value===akun.username && password.value===akun.password){
+        localStorage.setItem("login","true");
+        showDashboard();
+    }else{
+        loginError.innerText="Username atau password salah";
+    }
+}
+function logout(){
+    localStorage.removeItem("login");
+    location.reload();
+}
+function showDashboard(){
+    loginPage.classList.add("hidden");
+    dashboard.classList.remove("hidden");
+    ambilData();
+}
 
-let allData = [];
-
-// Ambil data dari Apps Script
-fetch(apiURL)
-.then(res => res.json())
-.then(data => {
-    allData = data;
-    tampilkanData(allData);
-    isiFilterKelas();
-})
-.catch(err => {
-    alert("Gagal mengambil data dari server!");
-    console.error(err);
-});
-
-function tampilkanData(data) {
-    const table = document.getElementById("dataTable");
-    table.innerHTML = "";
-    data.forEach(row => {
-        table.innerHTML += `
+/* DATA */
+function ambilData(){
+    fetch(apiURL)
+    .then(r=>r.json())
+    .then(d=>{
+        allData=d;
+        isiFilter();
+        tampilkan(d);
+    })
+    .catch(()=>alert("Gagal mengambil data"));
+}
+function tampilkan(data){
+    dataTable.innerHTML="";
+    data.forEach(r=>{
+        dataTable.innerHTML+=`
         <tr>
-            <td>${row["KELAS"]}</td>
-            <td>${row["JAM KE"]}</td>
-            <td>${row["HARI"]}</td>
-            <td>${row["MATA PELAJARAN"]}</td>
-            <td>${row["KEADAAN KELAS"]}</td>
+            <td>${r["KELAS"]}</td>
+            <td>${r["JAM KE"]}</td>
+            <td>${r["HARI"]}</td>
+            <td>${r["MATA PELAJARAN"]}</td>
+            <td>${r["KEADAAN KELAS"]}</td>
         </tr>`;
     });
 }
-
-function isiFilterKelas() {
-    const kelasUnik = [...new Set(allData.map(d => d["KELAS"]))];
-    const select = document.getElementById("filterKelas");
-    kelasUnik.forEach(k => {
-        select.innerHTML += `<option value="${k}">${k}</option>`;
+function isiFilter(){
+    filterKelas.innerHTML='<option value="">Semua Kelas</option>';
+    [...new Set(allData.map(r=>r["KELAS"]))].forEach(k=>{
+        filterKelas.innerHTML+=`<option>${k}</option>`;
     });
 }
-
-function filterData() {
-    const kelas = document.getElementById("filterKelas").value;
-    if (kelas === "") {
-        tampilkanData(allData);
-    } else {
-        tampilkanData(allData.filter(d => d["KELAS"] === kelas));
-    }
+function filterData(){
+    const k=filterKelas.value;
+    tampilkan(k?allData.filter(r=>r["KELAS"]===k):allData);
 }
+
+/* AUTO LOGIN */
+if(localStorage.getItem("login")==="true") showDashboard();
 </script>
 
 </body>

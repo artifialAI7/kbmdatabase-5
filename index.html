@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <title>Dashboard Monitoring Kelas</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
 <style>
 :root{
@@ -94,11 +96,17 @@ body{
 .btn-refresh{background:var(--success);color:white}
 .btn-logout{background:var(--danger);color:white}
 
+/* Refresh icon animation */
+.refresh-icon{display:inline-block;margin-right:6px}
+.refresh-icon.spinning{animation:spin 1s linear infinite}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
 /* CARD */
 .card{
     background:var(--card);
     border-radius:16px;
     padding:20px;
+    position:relative;
     margin-top:20px;
     box-shadow:0 10px 30px rgba(0,0,0,.1);
 }
@@ -114,6 +122,18 @@ select{
     padding:10px;
     border-radius:10px;
     border:1px solid #ccc;
+}
+
+/* LEGEND TABLE */
+.legend-table{width:100%;border-collapse:collapse;margin-top:4px;font-size:12px}
+.legend-table th{background:#e8f0ff;color:#0d47a1;padding:6px;border:1px solid #ddd;text-align:left}
+.legend-table td{padding:6px;border:1px solid #eee}
+
+.card-legend{position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.95);border-radius:8px;padding:8px 10px;box-shadow:0 6px 18px rgba(0,0,0,0.07);max-width:280px;font-size:12px}
+.card-legend h3{margin:0 0 6px 0;font-size:13px}
+
+@media (max-width:700px){
+    .card-legend{position:static;max-width:none;margin-top:10px}
 }
 
 /* TABLE */
@@ -133,6 +153,11 @@ td{
 }
 tr:hover{background:#f1f8ff}
 
+/* DATE/DAY STYLING */
+.date-cell{display:flex;flex-direction:column;gap:2px;font-weight:500}
+.date-cell .day-name{font-size:13px;color:#0d47a1;font-weight:600}
+.date-cell .date-value{font-size:12px;color:#555}
+
 /* FOOTER */
 .footer{
     text-align:center;
@@ -149,10 +174,26 @@ tr:hover{background:#f1f8ff}
     <div class="login-card">
         <h2>Dashboard</h2>
         <p>Monitoring Keadaan Kelas</p>
-        <input id="username" placeholder="Username">
-        <input id="password" type="password" placeholder="Password">
+        <input id="username" placeholder="Username" onkeypress="if(event.key==='Enter')login()">
+        <input id="password" type="password" placeholder="Password" onkeypress="if(event.key==='Enter')login()">
         <button onclick="login()">Masuk</button>
         <p id="loginError" style="color:red;font-size:13px"></p>
+        <p style="margin-top:6px"><a href="#" onclick="showForgot(event)">Lupa Password?</a></p>
+
+        <div id="forgotCard" class="hidden" style="text-align:left;margin-top:12px">
+            <h4 style="margin:6px 0 8px 0;color:var(--secondary)">Reset Password</h4>
+            <input id="forgotUsername" placeholder="Masukkan username untuk reset">
+            <button onclick="requestReset()" style="margin-top:6px">Kirim Token Reset (simulasi)</button>
+            <p id="forgotMsg" style="color:green;font-size:13px;margin-top:8px"></p>
+            <div id="resetForm" class="hidden" style="margin-top:8px">
+                <input id="resetToken" placeholder="Token yang diterima">
+                <input id="resetNewPassword" type="password" placeholder="Password baru">
+                <input id="resetConfirmPassword" type="password" placeholder="Konfirmasi password baru">
+                <button onclick="resetWithToken()" style="margin-top:6px">Reset Password</button>
+                <p id="resetMsg" style="color:green;font-size:13px;margin-top:6px"></p>
+            </div>
+            <p style="margin-top:8px"><a href="#" onclick="hideForgot(event)">Kembali ke Login</a></p>
+        </div>
     </div>
 </div>
 
@@ -164,7 +205,10 @@ tr:hover{background:#f1f8ff}
                 <h2>Laporan Kelas</h2>
                 <small>Monitoring kegiatan pembelajaran</small>
             </div>
-            <button class="btn btn-logout" onclick="logout()">Logout</button>
+            <div style="display:flex;gap:8px;align-items:center">
+                <button class="btn" style="background:#ffb300;color:white" onclick="showChangePassword()">Ubah Password</button>
+                <button class="btn btn-logout" onclick="logout()">Logout</button>
+            </div>
         </div>
     </div>
 
@@ -173,7 +217,34 @@ tr:hover{background:#f1f8ff}
             <select id="filterKelas" onchange="filterData()">
                 <option value="">Semua Kelas</option>
             </select>
-            <button class="btn btn-refresh" onclick="ambilData()">🔄 Refresh Data</button>
+            <button class="btn btn-refresh" onclick="ambilData()"><span class="refresh-icon">🔄</span> Refresh Data</button>
+            <button class="btn" style="background:#2e7d32;color:white" onclick="cetakData()">🖨️ Cetak</button>
+            <button class="btn" style="background:#1976d2;color:white" onclick="downloadPDF()">📄 Download PDF</button>
+            <button class="btn" style="background:#0d7f3e;color:white" onclick="downloadExcel()">📊 Download Excel</button>
+            <button class="btn" style="background:#616161;color:white" onclick="toggleLegend()">👁️ Kode Mapel</button>
+        </div>
+
+        <div id="cardLegend" class="card-legend">
+            <h3 style="margin:0 0 8px 0;font-size:16px;color:#0d47a1">Kode Mata Pelajaran</h3>
+            <table class="legend-table">
+                <thead>
+                    <tr>
+                        <th>Kode</th>
+                        <th>Mata Pelajaran</th>
+                        <th>Kode</th>
+                        <th>Mata Pelajaran</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>B</td><td>Biologi</td><td>BI</td><td>Bahasa Indonesia</td></tr>
+                    <tr><td>BIN</td><td>Bahasa Inggris</td><td>BK</td><td>BK</td></tr>
+                    <tr><td>E</td><td>Ekonomi</td><td>F</td><td>Fisika</td></tr>
+                    <tr><td>G</td><td>Geografi</td><td>KW</td><td>PKWU</td></tr>
+                    <tr><td>M</td><td>Matematika</td><td>OR</td><td>PJOK</td></tr>
+                    <tr><td>P</td><td>Pend. Pancasila</td><td>PAI</td><td>PAI & BP</td></tr>
+                    <tr><td>S</td><td>Sejarah</td><td>SB</td><td>Seni Budaya</td></tr>
+                </tbody>
+            </table>
         </div>
 
         <table>
@@ -181,7 +252,7 @@ tr:hover{background:#f1f8ff}
                 <tr>
                     <th>KELAS</th>
                     <th>JAM KE</th>
-                    <th>HARI</th>
+                    <th>HARI/TANGGAL</th>
                     <th>MATA PELAJARAN</th>
                     <th>KEADAAN KELAS</th>
                 </tr>
@@ -190,7 +261,7 @@ tr:hover{background:#f1f8ff}
         </table>
 
         <div class="footer">
-            designed by :
+            Designed by:
             <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vR8ZXd-OkTl0X6MvGcTrr7yxbYOA6F8nCYq7B5cX3eCilGRoqKzSNJp5ifEcIt7u2veOYp1IUPEdR3h/pub?gid=78947370&single=true&output=csv" target="_blank">
                 tim IT sman 5 Tangerang Selatan
             </a>
@@ -198,10 +269,115 @@ tr:hover{background:#f1f8ff}
     </div>
 </div>
 
+<!-- CHANGE PASSWORD CARD (hidden) -->
+<div id="changePasswordCard" class="hidden" style="position:fixed;right:18px;top:100px;width:320px;z-index:90">
+    <div class="card">
+        <h4 style="margin:0 0 8px 0;color:var(--secondary)">Ubah Password</h4>
+        <input id="curPassword" type="password" placeholder="Password saat ini">
+        <input id="newPassword" type="password" placeholder="Password baru">
+        <input id="confirmNewPassword" type="password" placeholder="Konfirmasi password baru">
+        <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn" style="background:#2e7d32;color:white" onclick="changePassword()">Simpan</button>
+            <button class="btn" onclick="hideChangePassword()">Batal</button>
+        </div>
+        <p id="changePwdMsg" style="font-size:13px;color:green;margin-top:8px"></p>
+    </div>
+</div>
+
 <script>
 const apiURL = "https://script.google.com/macros/s/AKfycbyGjzsGwNyoDeFFfYMlXHpULwGYj5qCiixyw9W9GLA3EYeH4Qmeiq3IsxA_QUGW_DK3vw/exec";
-const akun = { username:"admin", password:"12345" };
 let allData=[];
+
+// Account persistence (stored in localStorage)
+let akun = loadStoredAkun();
+function loadStoredAkun(){
+    try{
+        const s = localStorage.getItem('akun');
+        if(s) return JSON.parse(s);
+    }catch(e){}
+    const def = { username:'admin', password:'12345' };
+    localStorage.setItem('akun', JSON.stringify(def));
+    return def;
+}
+function saveAkun(a){
+    akun = a;
+    localStorage.setItem('akun', JSON.stringify(a));
+}
+
+// Password reset tokens storage helper
+function _getResetStore(){
+    try{ const s = JSON.parse(localStorage.getItem('resetTokens')||'{}'); return s }catch(e){return {}}
+}
+function _saveResetStore(o){ localStorage.setItem('resetTokens', JSON.stringify(o)); }
+
+// Show/hide forgot password UI
+function showForgot(e){ if(e) e.preventDefault(); document.getElementById('forgotCard').classList.remove('hidden'); }
+function hideForgot(e){ if(e) e && e.preventDefault(); document.getElementById('forgotCard').classList.add('hidden'); }
+
+// Request reset: generate token and simulate sending (display on page)
+function requestReset(){
+    const u = (document.getElementById('forgotUsername')||{}).value;
+    if(!u) return (document.getElementById('forgotMsg').innerText = 'Masukkan username');
+    if(u !== akun.username) return (document.getElementById('forgotMsg').innerText = 'Username tidak ditemukan');
+    const token = Math.floor(100000 + Math.random()*900000).toString();
+    const store = _getResetStore();
+    store[u] = { token, expires: Date.now() + 15*60*1000 };
+    _saveResetStore(store);
+    document.getElementById('forgotMsg').innerText = 'Token reset (simulasi dikirim): ' + token + ' — berlaku 15 menit';
+    document.getElementById('resetForm').classList.remove('hidden');
+}
+
+function resetWithToken(){
+    const u = (document.getElementById('forgotUsername')||{}).value;
+    const t = (document.getElementById('resetToken')||{}).value;
+    const p = (document.getElementById('resetNewPassword')||{}).value;
+    const pc = (document.getElementById('resetConfirmPassword')||{}).value;
+    const msgEl = document.getElementById('resetMsg');
+    msgEl.style.color = 'red';
+    if(!u || !t || !p) return msgEl.innerText = 'Lengkapi semua field';
+    if(p !== pc) return msgEl.innerText = 'Password baru tidak cocok';
+    const store = _getResetStore();
+    const rec = store[u];
+    if(!rec) return msgEl.innerText = 'Token tidak ditemukan. Minta token baru.';
+    if(rec.token !== t) return msgEl.innerText = 'Token salah';
+    if(Date.now() > rec.expires) return msgEl.innerText = 'Token sudah kadaluarsa';
+    // update password
+    akun.password = p;
+    saveAkun(akun);
+    // remove token
+    delete store[u]; _saveResetStore(store);
+    msgEl.style.color = 'green';
+    msgEl.innerText = 'Password berhasil direset. Silakan login.';
+    setTimeout(()=>{ hideForgot(); },1200);
+}
+
+// Change password (while logged in)
+function showChangePassword(){ document.getElementById('changePasswordCard').classList.remove('hidden'); }
+function hideChangePassword(){ document.getElementById('changePasswordCard').classList.add('hidden'); document.getElementById('changePwdMsg').innerText=''; }
+function changePassword(){
+    const cur = (document.getElementById('curPassword')||{}).value;
+    const np = (document.getElementById('newPassword')||{}).value;
+    const nc = (document.getElementById('confirmNewPassword')||{}).value;
+    const out = document.getElementById('changePwdMsg'); out.style.color='red';
+    if(!cur || !np) return out.innerText='Lengkapi semua field';
+    if(cur !== akun.password) return out.innerText='Password saat ini salah';
+    if(np !== nc) return out.innerText='Konfirmasi password tidak cocok';
+    akun.password = np; saveAkun(akun);
+    out.style.color='green'; out.innerText='Password berhasil diubah';
+    setTimeout(()=>hideChangePassword(),1000);
+}
+
+// Convert to GMT+7 (WIB - Waktu Indonesia Barat)
+function getDateGMT7(){
+    const now = new Date();
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const gmt7 = new Date(utc + (7 * 3600000));
+    return gmt7;
+}
+
+function formatDateGMT7(){
+    return getDateGMT7().toLocaleDateString('id-ID');
+}
 
 /* LOGIN */
 function login(){
@@ -224,6 +400,10 @@ function showDashboard(){
 
 /* DATA */
 function ambilData(){
+    const btn = document.querySelector('.btn-refresh');
+    const icon = btn ? btn.querySelector('.refresh-icon') : null;
+    if(icon) icon.classList.add('spinning');
+    if(btn) btn.disabled = true;
     fetch(apiURL)
     .then(r=>r.json())
     .then(d=>{
@@ -231,16 +411,46 @@ function ambilData(){
         isiFilter();
         tampilkan(d);
     })
-    .catch(()=>alert("Gagal mengambil data"));
+    .catch(()=>alert('Gagal mengambil data'))
+    .finally(()=>{
+        if(icon) icon.classList.remove('spinning');
+        if(btn) btn.disabled = false;
+    });
+}
+function formatHariTanggal(hariTanggal){
+    if(!hariTanggal) return {hari:"",date:""};
+    // Data dari spreadsheet format: "Senin, 8 Januari 2026" - tampilkan apa adanya tanpa konversi
+    const parts = hariTanggal.split(",");
+    const hari = parts[0].trim();
+    const date = parts[1] ? parts[1].trim() : "";
+    return {hari,date};
 }
 function tampilkan(data){
     dataTable.innerHTML="";
-    data.forEach(r=>{
+    const seen = new Set();
+    const unique = (data || []).filter(r=>{
+        const key = `${(r["KELAS"]||"").toString().trim()}|${(r["JAM KE"]||"").toString().trim()}|${(r["HARI"]||"").toString().trim()}|${(r["MATA PELAJARAN"]||"").toString().trim()}`;
+        if(seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+    unique.forEach(r=>{
+        const hariTanggal = formatHariTanggal(r["HARI/TANGGAL"]);
+        // Determine time value: prefer spreadsheet `JAM KE`, fallback to extracting from HARI/TANGGAL
+        const extractTime = s=>{
+            if(!s) return '';
+            const m = s.match(/(\d{1,2}:\d{2})/);
+            if(m) return m[1];
+            const m2 = s.match(/(\d{1,2}\.\d{2})/);
+            if(m2) return m2[1].replace('.',':');
+            return '';
+        };
+        const jamVal = (r["JAM KE"] && r["JAM KE"].toString().trim()) || extractTime(r["HARI/TANGGAL"]) || '';
         dataTable.innerHTML+=`
         <tr>
             <td>${r["KELAS"]}</td>
-            <td>${r["JAM KE"]}</td>
-            <td>${r["HARI"]}</td>
+            <td>${jamVal}</td>
+            <td><div class="date-cell"><span class="day-name">${hariTanggal.hari}</span><span class="date-value">${hariTanggal.date}</span></div></td>
             <td>${r["MATA PELAJARAN"]}</td>
             <td>${r["KEADAAN KELAS"]}</td>
         </tr>`;
@@ -257,12 +467,105 @@ function filterData(){
     tampilkan(k?allData.filter(r=>r["KELAS"]===k):allData);
 }
 
+/* PRINT */
+function cetakData(){
+    const printWindow = window.open('', '', 'width=900,height=600');
+    const dataTbody = document.getElementById('dataTable');
+    const tabelHTML = dataTbody ? dataTbody.parentElement.outerHTML : document.querySelector('table').outerHTML;
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Cetak Data Kelas</title>
+            <style>
+                body{font-family:'Segoe UI',sans-serif;margin:20px;color:#263238}
+                h2{color:#0d47a1;margin-bottom:5px}
+                p{margin-top:0;font-size:13px;color:#555}
+                table{width:100%;border-collapse:collapse;margin-top:20px}
+                th{background:#e3f2fd;color:#0d47a1;padding:12px;border:1px solid #ccc}
+                td{padding:10px;border:1px solid #ccc;text-align:center}
+                .footer{text-align:center;font-size:12px;color:#777;margin-top:20px}
+            </style>
+        </head>
+        <body>
+            <h2>Laporan Data Kelas</h2>
+            <p>Monitoring kegiatan pembelajaran - ${formatDateGMT+7()}</p>
+            ${tabelHTML}
+            <div class="footer">Dicetak dari Dashboard Monitoring Kelas SMAN 5 Tangerang Selatan</div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+}
+
+/* DOWNLOAD PDF */
+function downloadPDF(){
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const table = (document.getElementById('dataTable') && document.getElementById('dataTable').parentElement) || document.querySelector('table');
+    const rows = [];
+    const headers = [];
+    
+    table.querySelectorAll('thead th').forEach(th => headers.push(th.innerText));
+    table.querySelectorAll('tbody tr').forEach(tr => {
+        const row = [];
+        tr.querySelectorAll('td').forEach(td => row.push(td.innerText));
+        rows.push(row);
+    });
+    
+    doc.setFontSize(12);
+    doc.text('Laporan Data Kelas', 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Tanggal: ${formatDateGMT+7()}`, 14, 30);
+    
+    doc.autoTable({
+        head: [headers],
+        body: rows,
+        startY: 40,
+        theme: 'grid',
+        headStyles: { fillColor: [13, 71, 161], textColor: [255, 255, 255] }
+    });
+    
+    doc.save('Laporan_Kelas_' + new Date().getTime() + '.pdf');
+}
+
+/* DOWNLOAD EXCEL */
+function downloadExcel(){
+    const table = (document.getElementById('dataTable') && document.getElementById('dataTable').parentElement) || document.querySelector('table');
+    let csv = [];
+    
+    table.querySelectorAll('thead th').forEach(th => csv.push(th.innerText));
+    const headerRow = csv.join(',');
+    let dataRows = [headerRow];
+    
+    table.querySelectorAll('tbody tr').forEach(tr => {
+        const row = [];
+        tr.querySelectorAll('td').forEach(td => row.push('"' + td.innerText + '"'));
+        dataRows.push(row.join(','));
+    });
+    
+    const csvContent = dataRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'Laporan_Kelas_' + new Date().getTime() + '.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
 /* AUTO LOGIN */
 if(localStorage.getItem("login")==="true") showDashboard();
+
+/* TOGGLE LEGEND */
+function toggleLegend(){
+    const el = document.getElementById('cardLegend');
+    if(!el) return;
+    el.classList.toggle('hidden');
+}
 </script>
 
 </body>
 </html>
-
-
-

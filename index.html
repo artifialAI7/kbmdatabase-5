@@ -157,6 +157,7 @@ tr:hover{background:#f1f8ff}
 .date-cell{display:flex;flex-direction:column;gap:2px;font-weight:500}
 .date-cell .day-name{font-size:13px;color:#0d47a1;font-weight:600}
 .date-cell .date-value{font-size:12px;color:#555}
+.date-cell .time-value{font-size:12px;color:#333}
 
 /* FOOTER */
 .footer{
@@ -224,7 +225,7 @@ tr:hover{background:#f1f8ff}
             <button class="btn" style="background:#616161;color:white" onclick="toggleLegend()">👁️ Kode Mapel</button>
         </div>
 
-        <div id="cardLegend" class="card-legend">
+        <div id="cardLegend" class="card-legend hidden">
             <h3 style="margin:0 0 8px 0;font-size:16px;color:#0d47a1">Kode Mata Pelajaran</h3>
             <table class="legend-table">
                 <thead>
@@ -417,13 +418,38 @@ function ambilData(){
         if(btn) btn.disabled = false;
     });
 }
-function formatHariTanggal(hariTanggal){
-    if(!hariTanggal) return {hari:"",date:""};
-    // Data dari spreadsheet format: "Senin, 8 Januari 2026" - tampilkan apa adanya tanpa konversi
-    const parts = hariTanggal.split(",");
-    const hari = parts[0].trim();
-    const date = parts[1] ? parts[1].trim() : "";
-    return {hari,date};
+function formatHariTanggal(hariTanggal, timestamp){
+    if(!hariTanggal && !timestamp) return {hari:"",date:""};
+    
+    // Jika ada timestamp, gunakan itu untuk format yang konsisten (termasuk waktu)
+    if(timestamp){
+        try{
+            const date = new Date(timestamp);
+            const formatter = new Intl.DateTimeFormat('id-ID', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+            const formatted = formatter.format(date);
+            const parts = formatted.split(",");
+            const hari = parts[0].trim();
+            const date_part = parts[1] ? parts[1].trim() : "";
+            const time_part = date.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false});
+            return {hari, date:date_part, time: time_part};
+        }catch(e){}
+    }
+    
+    // Fallback: parse dari format "Senin, 8 Januari 2026" dan coba ekstrak waktu jika ada
+    const parts = hariTanggal ? hariTanggal.split(",") : ["", ""];
+    const hari = (parts[0]||"").trim();
+    const date = (parts[1]||"").trim();
+    // coba cari pola waktu termasuk detik (contoh 9:05:03 atau 09:05:03)
+    let time = '';
+    try{
+        const m = hariTanggal && hariTanggal.match(/(\d{1,2}:\d{2}:\d{2})/);
+        if(m) time = m[1];
+        else{
+            const m2 = hariTanggal && hariTanggal.match(/(\d{1,2}:\d{2})/);
+            if(m2) time = m2[1] + ':00';
+        }
+    }catch(e){ time = ''; }
+    return {hari,date,time};
 }
 function tampilkan(data){
     dataTable.innerHTML="";
@@ -435,7 +461,8 @@ function tampilkan(data){
         return true;
     });
     unique.forEach(r=>{
-        const hariTanggal = formatHariTanggal(r["HARI/TANGGAL"]);
+        // Gunakan timestamp jika ada, untuk konsistensi dengan waktu sebenarnya
+        const hariTanggal = formatHariTanggal(r["HARI/TANGGAL"], r["Timestamp"] || r["timestamp"]);
         // Determine time value: prefer spreadsheet `JAM KE`, fallback to extracting from HARI/TANGGAL
         const extractTime = s=>{
             if(!s) return '';
@@ -450,7 +477,7 @@ function tampilkan(data){
         <tr>
             <td>${r["KELAS"]}</td>
             <td>${jamVal}</td>
-            <td><div class="date-cell"><span class="day-name">${hariTanggal.hari}</span><span class="date-value">${hariTanggal.date}</span></div></td>
+            <td><div class="date-cell"><span class="day-name">${hariTanggal.hari}</span><span class="date-value">${hariTanggal.date}</span><span class="time-value">${hariTanggal.time ? hariTanggal.time : ''}</span></div></td>
             <td>${r["MATA PELAJARAN"]}</td>
             <td>${r["KEADAAN KELAS"]}</td>
         </tr>`;
